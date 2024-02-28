@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Old-Style OS Emulator</title>
+  <style>
+    body {
+      font-family: monospace;
+      margin: 20px;
+    }
+    #output {
+      white-space: pre;
+    }
+    input {
+      width: 100%;
+      box-sizing: border-box;
+    }
+  </style>
+</head>
+<body>
+  <div id="output"></div>
+  <input id="input" type="text" onkeydown="handleInput(event)">
+  <script>
+    const outputDiv = document.getElementById('output');
+    const inputElement = document.getElementById('input');
+    let commandHistory = [];
+    let historyIndex = 0;
+    let currentDrive = 'drive1'; // Initial drive tag
+
+    function handleInput(event) {
+      if (event.key === 'Enter') {
+        const command = inputElement.value.trim();
+        outputDiv.innerHTML += `<div>> ${command}</div>`;
+        executeCommand(command);
+        commandHistory.push(command);
+        historyIndex = commandHistory.length;
+        inputElement.value = '';
+      } else if (event.key === 'ArrowUp') {
+        historyIndex = Math.max(0, historyIndex - 1);
+        inputElement.value = commandHistory[historyIndex] || '';
+      } else if (event.key === 'ArrowDown') {
+        historyIndex = Math.min(commandHistory.length, historyIndex + 1);
+        inputElement.value = commandHistory[historyIndex] || '';
+      }
+    }
+
+    function executeCommand(command) {
+      let output = '';
+      const lowerCaseCommand = command.toLowerCase();
+      const driveData = JSON.parse(localStorage.getItem(currentDrive)) || {};
+
+      switch (lowerCaseCommand) {
+        case 'change-drive':
+          const newDrive = prompt('Enter drive tag (drive1, drive2, ..., drive5):');
+          if (newDrive && newDrive.startsWith('drive') && newDrive.length === 6) {
+            currentDrive = newDrive;
+            output += `Switched to drive: ${currentDrive}\n`;
+          } else {
+            output += 'Invalid drive tag. Use drive1, drive2, ..., drive5.\n';
+          }
+          break;
+        case 'list-drives':
+          const drives = Object.keys(localStorage)
+            .filter(tag => tag.startsWith('drive') && tag.length === 6)
+            .join(', ');
+          output += `Available drives: ${drives}\n`;
+          break;
+        case 'create-file':
+          const fileNameToCreate = command.slice('create-file '.length);
+          if (fileNameToCreate) {
+            driveData[fileNameToCreate] = '';
+            output += `File created: ${fileNameToCreate}\n`;
+          } else {
+            output += 'Invalid file name.\n';
+          }
+          break;
+        case 'write-file':
+          const writeFileArgs = command.slice('write-file '.length).split(' ');
+          const writeFileFileName = writeFileArgs[0];
+          const writeFileContent = writeFileArgs.slice(1).join(' ');
+          if (writeFileFileName && writeFileContent !== undefined) {
+            driveData[writeFileFileName] = writeFileContent;
+            output += `Content written to ${writeFileFileName}\n`;
+          } else {
+            output += 'Invalid arguments.\n';
+          }
+          break;
+        case 'read-file':
+          const readFileFileName = command.slice('read-file '.length);
+          if (readFileFileName) {
+            const fileContent = driveData[readFileFileName];
+            output += fileContent !== undefined ? `File content:\n${fileContent}\n` : `File not found: ${readFileFileName}\n`;
+          } else {
+            output += 'Invalid file name.\n';
+          }
+          break;
+        case 'delete-file':
+          const deleteFileName = command.slice('delete-file '.length);
+          if (deleteFileName) {
+            delete driveData[deleteFileName];
+            output += `File deleted: ${deleteFileName}\n`;
+          } else {
+            output += 'Invalid file name.\n';
+          }
+          break;
+        case 'create-folder':
+          const folderName = prompt('Enter folder name:');
+          if (folderName) {
+            driveData[folderName] = {};
+            output += `Folder created: ${folderName}\n`;
+          } else {
+            output += 'Invalid folder name.\n';
+          }
+          break;
+        case 'list-files':
+          const files = Object.keys(driveData).join(', ');
+          output += `Files and folders in current drive: ${files}\n`;
+          break;
+        case 'rename':
+          const renameArgs = command.slice('rename '.length).split(' ');
+          const oldName = renameArgs[0];
+          const newName = renameArgs[1];
+          if (oldName && newName) {
+            const fileOrFolder = driveData[oldName];
+            if (fileOrFolder !== undefined) {
+              driveData[newName] = fileOrFolder;
+              delete driveData[oldName];
+              output += `Renamed ${oldName} to ${newName}\n`;
+            } else {
+              output += `File or folder not found: ${oldName}\n`;
+            }
+          } else {
+            output += 'Invalid arguments.\n';
+          }
+          break;
+        case 'calc':
+          try {
+            const result = eval(command.slice('calc '.length));
+            output += `Result: ${result}\n`;
+          } catch (error) {
+            output += 'Invalid expression\n';
+          }
+          break;
+        case 'clear':
+          outputDiv.innerHTML = '';
+          break;
+        case 'echo':
+          const echoText = command.slice('echo '.length);
+          output += `${echoText}\n`;
+          break;
+        case 'about':
+          output += 'Old-Style OS Emulator\n';
+          output += 'A simple emulator for a text-based operating system\n';
+          break;
+        case 'contact':
+          output += 'Contact us at: os.emulator@example.com\n';
+          break;
+        case 'version':
+          output += 'Emulator Version 1.0\n';
+          break;
+        case 'open':
+          const fileToOpen = command.slice('open '.length);
+          output += `Opening file: ${fileToOpen}\n`;
+          break;
+        case 'edit':
+          const fileToEdit = command.slice('edit '.length);
+          output += `Editing file: ${fileToEdit}\n`;
+          break;
+        case 'copy':
+          const [copySource, copyDestination] = command.slice('copy '.length).split(' ');
+          output += `Copying from ${copySource} to ${copyDestination}\n`;
+          break;
+        case 'delete':
+          const fileToDelete = command.slice('delete '.length);
+          output += `Deleting: ${fileToDelete}\n`;
+          break;
+        case 'search':
+          const searchQuery = command.slice('search '.length);
+          output += `Searching for: ${searchQuery}\n`;
+          break;
+        case 'print':
+          const fileToPrint = command.slice('print '.length);
+          output += `Printing content of file: ${fileToPrint}\n`;
+          break;
+        case 'run':
+          const programToRun = command.slice('run '.length);
+          output += `Running program: ${programToRun}\n`;
+          break;
+        case 'exit':
+          output += 'Emulator closed.\n';
+          break;
+        case 'date':
+          const currentDate = new Date().toLocaleString();
+          output += `Current date: ${currentDate}\n`;
+          break;
+        case 'list':
+          const currentDirectoryFiles = Object.keys(driveData).join(', ');
+          output += `Files in the current directory: ${currentDirectoryFiles}\n`;
+          break;
+        case 'cd':
+          const newDirectory = command.slice('cd '.length);
+          if (newDirectory) {
+            output += `Changed directory to: ${newDirectory}\n`;
+          } else {
+            output += 'Invalid directory.\n';
+          }
+          break;
+        case 'mkdir':
+          const newDirectoryName = command.slice('mkdir '.length);
+          if (newDirectoryName) {
+            driveData[newDirectoryName] = {};
+            output += `Directory created: ${newDirectoryName}\n`;
+          } else {
+            output += 'Invalid directory name.\n';
+          }
+          break;
+        case 'help':
+          output += 'Available commands:\n';
+          output += ' - help: Display this help message\n';
+          output += ' - change-drive: Switch to a different drive\n';
+          output += ' - list-drives: Display available drives\n';
+          output += ' - create-file [file]: Create a new file\n';
+          output += ' - write-file [file] [content]: Write content to a file\n';
+          output += ' - read-file [file]: Read the content of a file\n';
+          output += ' - delete-file [file]: Delete a file\n';
+          output += ' - create-folder: Create a new folder\n';
+          output += ' - list-files: List files and folders in the current drive\n';
+          output += ' - rename [oldName] [newName]: Rename a file or folder\n';
+          output += ' - calc [expression]: Simple calculator\n';
+          output += ' - clear: Clear the screen\n';
+          output += ' - echo [text]: Display the provided text\n';
+          output += ' - about: Display information about the emulator\n';
+          output += ' - contact: Show contact information\n';
+          output += ' - version: Display the emulator version\n';
+          output += ' - open [file]: Open a file\n';
+          output += ' - edit [file]: Edit a file\n';
+          output += ' - copy [source] [destination]: Copy a file or folder\n';
+          output += ' - delete [file]: Delete a file or folder\n';
+          output += ' - search [query]: Search for files or folders\n';
+          output += ' - print [file]: Print the content of a file\n';
+          output += ' - run [program]: Execute a program\n';
+          output += ' - exit: Close the emulator\n';
+          output += ' - help [command]: Get help for a specific command\n';
+          break;
+        case 'help change-drive':
+          output += 'change-drive: Switch to a different drive\n';
+          output += 'Usage: change-drive\n';
+          break;
+        case 'help list-drives':
+          output += 'list-drives: Display available drives\n';
+          output += 'Usage: list-drives\n';
+          break;
+        case 'help create-file':
+          output += 'create-file [file]: Create a new file\n';
+          output += 'Usage: create-file [file]\n';
+          break;
+        case 'help write-file':
+          output += 'write-file [file] [content]: Write content to a file\n';
+          output += 'Usage: write-file [file] [content]\n';
+          break;
+        case 'help read-file':
+          output += 'read-file [file]: Read the content of a file\n';
+          output += 'Usage: read-file [file]\n';
+          break;
+        case 'help delete-file':
+          output += 'delete-file [file]: Delete a file\n';
+          output += 'Usage: delete-file [file]\n';
+          break;
+        case 'help create-folder':
+          output += 'create-folder: Create a new folder\n';
+          output += 'Usage: create-folder\n';
+          break;
+        case 'help list-files':
+          output += 'list-files: List files and folders in the current drive\n';
+          output += 'Usage: list-files\n';
+          break;
+        case 'help rename':
+          output += 'rename [oldName] [newName]: Rename a file or folder\n';
+          output += 'Usage: rename [oldName] [newName]\n';
+          break;
+        case 'help calc':
+          output += 'calc [expression]: Simple calculator\n';
+          output += 'Usage: calc [expression]\n';
+          break;
+        case 'help clear':
+          output += 'clear: Clear the screen\n';
+          output += 'Usage: clear\n';
+          break;
+        case 'help echo':
+          output += 'echo [text]: Display the provided text\n';
+          output += 'Usage: echo [text]\n';
+          break;
+        case 'help about':
+          output += 'about: Display information about the emulator\n';
+          output += 'Usage: about\n';
+          break;
+        case 'help contact':
+          output += 'contact: Show contact information\n';
+          output += 'Usage: contact\n';
+          break;
+        case 'help version':
+          output += 'version: Display the emulator version\n';
+          output += 'Usage: version\n';
+          break;
+        case 'help open':
+          output += 'open [file]: Open a file\n';
+          output += 'Usage: open [file]\n';
+          break;
+        case 'help edit':
+          output += 'edit [file]: Edit a file\n';
+          output += 'Usage: edit [file]\n';
+          break;
+        case 'help copy':
+          output += 'copy [source] [destination]: Copy a file or folder\n';
+          output += 'Usage: copy [source] [destination]\n';
+          break;
+        case 'help delete':
+          output += 'delete [file]: Delete a file or folder\n';
+          output += 'Usage: delete [file]\n';
+          break;
+        case 'help search':
+          output += 'search [query]: Search for files or folders\n';
+          output += 'Usage: search [query]\n';
+          break;
+        case 'help print':
+          output += 'print [file]: Print the content of a file\n';
+          output += 'Usage: print [file]\n';
+          break;
+        case 'help run':
+          output += 'run [program]: Execute a program\n';
+          output += 'Usage: run [program]\n';
+          break;
+        case 'help exit':
+          output += 'exit: Close the emulator\n';
+          output += 'Usage: exit\n';
+          break;
+        case 'help date':
+          output += 'date: Display the current date\n';
+          output += 'Usage: date\n';
+          break;
+        case 'help list':
+          output += 'list: List files in the current directory\n';
+          output += 'Usage: list\n';
+          break;
+        case 'help cd':
+          output += 'cd [directory]: Change the current directory\n';
+          output += 'Usage: cd [directory]\n';
+          break;
+        case 'help mkdir':
+          output += 'mkdir [directory]: Create a new directory\n';
+          output += 'Usage: mkdir [directory]\n';
+          break;
+        case 'help run':
+          output += 'run [program]: Execute a program\n';
+          output += 'Usage: run [program]\n';
+          break;
+        case 'help exit':
+          output += 'exit: Close the emulator\n';
+          output += 'Usage: exit\n';
+          break;
+        default:
+          output += `Unknown command: ${command}\n`;
+          output += 'Type "help" for a list of available commands.\n';
+          break;
+      }
+
+      localStorage.setItem(currentDrive, JSON.stringify(driveData)); // Save changes to local storage
+      outputDiv.innerHTML += `<div>${output}</div>`;
+    }
+  </script>
+</body>
+</html>
